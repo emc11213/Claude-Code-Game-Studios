@@ -69,6 +69,17 @@ and exits cleanly.
 Include a brief note in your PR description describing what you tested and
 what the output looked like.
 
+CI runs `.github/scripts/ci-check.sh` on every PR, on Windows (Git Bash),
+macOS (bash 3.2) and Linux, plus ShellCheck at error level. It checks that every
+script parses, `settings.json` names only hooks that exist, `studio-tests/catalog.yaml`
+matches the skills and agents on disk, the counts in the README are right, every
+skill and agent has valid frontmatter, and every hook runs on a fresh checkout.
+Run it locally before you push:
+
+```bash
+bash .github/scripts/ci-check.sh
+```
+
 ## Commit Format
 
 Use [Conventional Commits](https://www.conventionalcommits.org/):
