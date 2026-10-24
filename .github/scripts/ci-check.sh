@@ -201,7 +201,10 @@ check_hooks() {
   section "hooks: smoke run of every hook in settings.json ($BASH_BIN)"
   need_jq hooks || return
   _root=$(pwd -W 2>/dev/null || pwd)
-  jqr '.hooks | to_entries[] | .key as $e | .value[] | (.matcher // "") as $m
+  # An empty matcher becomes `*`: a tab is IFS whitespace, so `read` would
+  # merge the empty field into the next and shift every column after it.
+  jqr '.hooks | to_entries[] | .key as $e | .value[]
+       | (.matcher // "" | if . == "" then "*" else . end) as $m
        | .hooks[] | [$e, $m, .command, ((.timeout // 60) | tostring)] | @tsv' \
     .claude/settings.json > "$TMP/hooks.tsv"
   _before=$FAILS; _n=0
