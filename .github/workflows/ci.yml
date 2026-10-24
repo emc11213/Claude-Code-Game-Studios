@@ -1,0 +1,73 @@
+# CI for the template itself: the skills, agents, hooks and helpers in .claude/
+# and the test catalog in studio-tests/. It does not build or test a game; the
+# game's CI is what /test-setup writes for the chosen engine.
+#
+# The checks live in .github/scripts/ci-check.sh so they run the same way
+# locally:  bash .github/scripts/ci-check.sh
+
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  checks:
+    name: Template checks (${{ matrix.os }})
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          # Git Bash on Windows is the project's primary platform.
+          - os: windows-latest
+            bash: bash
+          # /bin/bash on macOS is 3.2: the floor every helper promises.
+          - os: macos-latest
+            bash: /bin/bash
+          - os: ubuntu-latest
+            bash: bash
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 20
+    defaults:
+      run:
+        shell: bash
+    steps:
+      # Some template paths pass Windows' 260-character limit; without this
+      # the checkout fails with "Filename too long".
+      - name: Allow long paths
+        if: runner.os == 'Windows'
+        run: git config --global core.longpaths true
+
+      - uses: actions/checkout@v7
+
+      - name: Tool versions
+        run: |
+          ${{ matrix.bash }} --version | head -1
+          jq --version
+          python3 --version 2>/dev/null || python --version
+
+      - name: Run checks
+        env:
+          CCGS_BASH: ${{ matrix.bash }}
+        run: ${{ matrix.bash }} .github/scripts/ci-check.sh
+
+  shellcheck:
+    name: ShellCheck
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v7
+      - run: shellcheck --version
+      # Error severity only: those are real bugs. Warnings and style findings
+      # are left to review until the existing scripts have been brought clean.
+      - name: ShellCheck (errors)
+        run: git ls-files -z -- '*.sh' | xargs -0 shellcheck --shell=bash --severity=error
